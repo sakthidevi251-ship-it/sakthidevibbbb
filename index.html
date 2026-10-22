@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scroll Less – Social media de-addiction tracker</title>
+<style>
+  :root {
+    --paper: #F1F4F8;
+    --card: #FFFFFF;
+    --ink: #1B2A41;
+    --muted: #5C6B80;
+    --line: #D5DDE8;
+    --blue: #2F5BEA;
+    --amber: #F2A93B;
+    --green: #2E9F6B;
+    --red: #D64545;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.55;
+    padding: 0 16px 60px;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+  header { padding: 48px 0 24px; }
+  h1 { font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.1; letter-spacing: -0.02em; max-width: 14ch; }
+  header p { color: var(--muted); margin-top: 12px; max-width: 52ch; }
+  h2 { font-size: 1.15rem; margin-bottom: 14px; }
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px;
+    margin-top: 18px;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+
+  /* Today */
+  .big { font-size: 3.4rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .big small { font-size: 1.1rem; font-weight: 500; color: var(--muted); margin-left: 6px; }
+  .bar { height: 14px; background: var(--line); border-radius: 8px; overflow: hidden; margin: 16px 0 8px; }
+  .bar > div { height: 100%; width: 0; background: var(--green); transition: width .4s, background .3s; }
+  .status { color: var(--muted); font-size: .95rem; }
+
+  /* Controls */
+  label { font-size: .9rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input, select {
+    font: inherit; padding: 9px 12px; border: 1px solid var(--line);
+    border-radius: 8px; background: #fff; color: var(--ink); width: 100%;
+  }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    padding: 9px 16px; border-radius: 8px; border: 1px solid var(--ink);
+    background: var(--ink); color: #fff;
+  }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  button:hover { filter: brightness(1.15); }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  .row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 110px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .chips button { padding: 6px 12px; font-size: .9rem; }
+
+  /* Week chart */
+  .week { display: flex; align-items: flex-end; gap: 10px; height: 150px; margin-top: 8px; }
+  .week .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+  .week .b { width: 100%; background: var(--blue); border-radius: 6px 6px 0 0; min-height: 3px; transition: height .4s; }
+  .week .b.over { background: var(--red); }
+  .week .d { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+  .week .v { font-size: .75rem; color: var(--muted); }
+  .streak { margin-top: 14px; font-weight: 600; }
+
+  /* Timer + pause */
+  .clock { font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 6px 0 14px; }
+  .breath {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: var(--blue); opacity: .25; margin: 6px auto 14px;
+    transition: transform 4s ease-in-out, opacity 4s ease-in-out;
+  }
+  .breath.in { transform: scale(1.35); opacity: .6; }
+  .center { text-align: center; }
+
+  /* Challenges */
+  ul.checks { list-style: none; }
+  ul.checks li { padding: 10px 0; border-top: 1px solid var(--line); display: flex; gap: 12px; align-items: flex-start; }
+  ul.checks li:first-child { border-top: 0; }
+  ul.checks input { width: 20px; height: 20px; margin-top: 3px; flex: none; }
+  ul.checks li.done span { color: var(--muted); text-decoration: line-through; }
+
+  footer { margin-top: 28px; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Take your time back from the feed.</h1>
+    <p>Set a daily limit, log the minutes you spend on Instagram and other apps, and see your week. Your data stays in this browser.</p>
+  </header>
+
+  <!-- Today -->
+  <section aria-labelledby="today-h">
+    <h2 id="today-h">Today</h2>
+    <div class="big"><span id="todayMin">0</span><small>of <span id="goalShow">60</span> min</small></div>
+    <div class="bar"><div id="fill"></div></div>
+    <p class="status" id="status">Nothing logged yet.</p>
+
+    <div class="row" style="margin-top:20px">
+      <div>
+        <label for="app">App</label>
+        <select id="app">
+          <option>Instagram</option><option>YouTube</option><option>Snapchat</option>
+          <option>X (Twitter)</option><option>Facebook</option><option>WhatsApp</option><option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label for="mins">Minutes</label>
+        <input id="mins" type="number" min="1" max="600" placeholder="e.g. 15">
+      </div>
+      <div style="flex:none"><button id="addBtn">Add time</button></div>
+    </div>
+    <div class="chips" aria-label="Quick add">
+      <button class="ghost" data-add="5">+5 min</button>
+      <button class="ghost" data-add="15">+15 min</button>
+      <button class="ghost" data-add="30">+30 min</button>
+    </div>
+
+    <div class="row" style="margin-top:20px">
+      <div>
+        <label for="goal">Daily limit (minutes)</label>
+        <input id="goal" type="number" min="5" max="600" value="60">
+      </div>
+      <div style="flex:none"><button class="ghost" id="resetToday">Clear today</button></div>
+    </div>
+  </section>
+
+  <!-- Breakdown + week -->
+  <div class="grid">
+    <section aria-labelledby="apps-h">
+      <h2 id="apps-h">Today by app</h2>
+      <div id="breakdown" class="status">No entries yet.</div>
+    </section>
+    <section aria-labelledby="week-h">
+      <h2 id="week-h">Last 7 days</h2>
+      <div class="week" id="week"></div>
+      <p class="streak" id="streak"></p>
+    </section>
+  </div>
+
+  <!-- Tools -->
+  <div class="grid">
+    <section aria-labelledby="focus-h">
+      <h2 id="focus-h">Focus timer</h2>
+      <p class="status">Put the phone away and work or study without it.</p>
+      <div class="clock" id="clock">25:00</div>
+      <div class="row">
+        <div>
+          <label for="focusLen">Length (minutes)</label>
+          <input id="focusLen" type="number" min="1" max="120" value="25">
+        </div>
+        <div style="flex:none"><button id="focusBtn">Start focus</button></div>
+      </div>
+      <p class="status" id="focusMsg" style="margin-top:10px"></p>
+    </section>
+
+    <section aria-labelledby="pause-h" class="center">
+      <h2 id="pause-h">Pause before you scroll</h2>
+      <p class="status">Take three slow breaths. Then decide if you still want to open the app.</p>
+      <div class="breath" id="breath"></div>
+      <p id="breathText" class="status" style="min-height:1.5em"></p>
+      <button id="breathBtn" style="margin-top:8px">Start 3 breaths</button>
+    </section>
+  </div>
+
+  <!-- Challenges -->
+  <section aria-labelledby="ch-h">
+    <h2 id="ch-h">Today’s small challenges</h2>
+    <ul class="checks" id="challenges"></ul>
+  </section>
+
+  <footer><button class="ghost" id="wipe">Erase all saved data</button></footer>
+</main>
+
+<script>
+(function () {
+  var KEY = "scrollless-v1";
+  var CHALLENGES = [
+    "Turn off notifications for Instagram",
+    "Keep the phone out of the bedroom tonight",
+    "No social media for the first hour after waking",
+    "Move social apps off your home screen",
+    "Replace one scroll session with a walk or a call",
+    "Set a grayscale screen at night"
+  ];
+
+  function dayKey(d) { d = d || new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  var state = load();
+  state.goal = state.goal || 60;
+  state.days = state.days || {};      // { dayKey: { appName: minutes } }
+  state.done = state.done || {};      // { dayKey: [indexes] }
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function todayTotals() { return state.days[dayKey()] || {}; }
+  function sum(o) { return Object.keys(o).reduce(function (t, k) { return t + o[k]; }, 0); }
+
+  function addTime(app, m) {
+    m = parseInt(m, 10);
+    if (!m || m < 1) return;
+    var k = dayKey();
+    state.days[k] = state.days[k] || {};
+    state.days[k][app] = (state.days[k][app] || 0) + m;
+    save(); render();
+  }
+
+  function render() {
+    var totals = todayTotals(), total = sum(totals), goal = state.goal;
+    $("todayMin").textContent = total;
+    $("goalShow").textContent = goal;
+    $("goal").value = goal;
+
+    var pct = Math.min(100, Math.round(total / goal * 100));
+    var fill = $("fill");
+    fill.style.width = pct + "%";
+    fill.style.background = total > goal ? "var(--red)" : (pct >= 80 ? "var(--amber)" : "var(--green)");
+
+    var left = goal - total;
+    $("status").textContent = total === 0 ? "Nothing logged yet."
+      : left > 0 ? left + " minutes left before you reach your limit."
+      : "You’re " + (-left) + " minutes over your limit. Put the phone down for now.";
+
+    // breakdown
+    var names = Object.keys(totals).sort(function (a, b) { return totals[b] - totals[a]; });
+    var bd = $("breakdown");
+    bd.innerHTML = "";
+    if (!names.length) bd.textContent = "No entries yet.";
+    names.forEach(function (n) {
+      var row = document.createElement("div");
+      row.style.cssText = "display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);color:var(--ink)";
+      row.innerHTML = "<span></span><strong></strong>";
+      row.children[0].textContent = n;
+      row.children[1].textContent = totals[n] + " min";
+      bd.appendChild(row);
+    });
+
+    // week
+    var week = $("week"); week.innerHTML = "";
+    var vals = [], labels = [], max = goal, i, d;
+    for (i = 6; i >= 0; i--) {
+      d = new Date(); d.setDate(d.getDate() - i);
+      var v = sum(state.days[dayKey(d)] || {});
+      vals.push(v);
+      labels.push(d.toLocaleDateString(undefined, { weekday: "short" }));
+      if (v > max) max = v;
+    }
+    vals.forEach(function (v, idx) {
+      var col = document.createElement("div"); col.className = "col";
+      var val = document.createElement("div"); val.className = "v"; val.textContent = v || "";
+      var b = document.createElement("div"); b.className = "b" + (v > goal ? " over" : "");
+      b.style.height = Math.round(v / max * 100) + "px";
+      var dd = document.createElement("div"); dd.className = "d"; dd.textContent = labels[idx];
+      col.appendChild(val); col.appendChild(b); col.appendChild(dd);
+      week.appendChild(col);
+    });
+
+    // streak = consecutive days at or under the limit, only counting days with an entry
+    var streak = 0;
+    for (i = 0; i < 60; i++) {
+      d = new Date(); d.setDate(d.getDate() - i);
+      var entry = state.days[dayKey(d)];
+      if (!entry) { if (i === 0) continue; break; }
+      if (sum(entry) <= goal) streak++; else break;
+    }
+    $("streak").textContent = streak ? "Streak: " + streak + (streak === 1 ? " day" : " days") + " within your limit." : "Log a day under your limit to start a streak.";
+
+    renderChallenges();
+  }
+
+  function renderChallenges() {
+    var ul = $("challenges"); ul.innerHTML = "";
+    var done = state.done[dayKey()] || [];
+    CHALLENGES.forEach(function (text, idx) {
+      var li = document.createElement("li");
+      var cb = document.createElement("input"); cb.type = "checkbox"; cb.id = "c" + idx;
+      cb.checked = done.indexOf(idx) > -1;
+      var sp = document.createElement("span"); sp.textContent = text;
+      var lab = document.createElement("label"); lab.htmlFor = cb.id; lab.style.cssText = "margin:0;color:var(--ink);cursor:pointer;flex:1";
+      lab.appendChild(sp);
+      if (cb.checked) li.className = "done";
+      cb.addEventListener("change", function () {
+        var k = dayKey(); var arr = state.done[k] || [];
+        arr = arr.filter(function (x) { return x !== idx; });
+        if (cb.checked) arr.push(idx);
+        state.done[k] = arr; save(); renderChallenges();
+      });
+      li.appendChild(cb); li.appendChild(lab); ul.appendChild(li);
+    });
+  }
+
+  // events
+  $("addBtn").onclick = function () { addTime($("app").value, $("mins").value); $("mins").value = ""; };
+  $("mins").addEventListener("keydown", function (e) { if (e.key === "Enter") $("addBtn").click(); });
+  document.querySelectorAll("[data-add]").forEach(function (b) {
+    b.onclick = function () { addTime($("app").value, b.getAttribute("data-add")); };
+  });
+  $("goal").onchange = function () {
+    var g = parseInt(this.value, 10);
+    state.goal = g >= 5 ? g : 60; save(); render();
+  };
+  $("resetToday").onclick = function () { delete state.days[dayKey()]; save(); render(); };
+  $("wipe").onclick = function () {
+    if (confirm("Erase all logged time and challenges?")) { state = { goal: 60, days: {}, done: {} }; save(); render(); }
+  };
+
+  // focus timer
+  var timer = null, remaining = 0;
+  function fmt(s) { var m = Math.floor(s / 60), r = s % 60; return (m < 10 ? "0" : "") + m + ":" + (r < 10 ? "0" : "") + r; }
+  $("focusLen").onchange = function () { if (!timer) $("clock").textContent = fmt((parseInt(this.value, 10) || 25) * 60); };
+  $("focusBtn").onclick = function () {
+    if (timer) {
+      clearInterval(timer); timer = null;
+      $("focusBtn").textContent = "Start focus";
+      $("focusMsg").textContent = "Stopped.";
+      $("clock").textContent = fmt((parseInt($("focusLen").value, 10) || 25) * 60);
+      return;
+    }
+    remaining = (parseInt($("focusLen").value, 10) || 25) * 60;
+    $("focusBtn").textContent = "Stop";
+    $("focusMsg").textContent = "Phone away. You’ve got this.";
+    $("clock").textContent = fmt(remaining);
+    timer = setInterval(function () {
+      remaining--;
+      $("clock").textContent = fmt(remaining);
+      if (remaining <= 0) {
+        clearInterval(timer); timer = null;
+        $("focusBtn").textContent = "Start focus";
+        $("focusMsg").textContent = "Done. That was a full session without scrolling.";
+      }
+    }, 1000);
+  };
+
+  // breathing pause
+  var breathing = false;
+  $("breathBtn").onclick = function () {
+    if (breathing) return;
+    breathing = true;
+    var n = 0, circle = $("breath"), txt = $("breathText");
+    function cycle() {
+      if (n >= 3) {
+        circle.classList.remove("in");
+        txt.textContent = "Still want to open it? Or do something else for ten minutes?";
+        breathing = false; return;
+      }
+      n++;
+      txt.textContent = "Breathe in… (" + n + " of 3)";
+      circle.classList.add("in");
+      setTimeout(function () {
+        txt.textContent = "Breathe out…";
+        circle.classList.remove("in");
+        setTimeout(cycle, 4000);
+      }, 4000);
+    }
+    cycle();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
